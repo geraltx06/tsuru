@@ -1,0 +1,15 @@
+# Build output. Everything here is reproducible with build.ps1, and the
+# assets it contains are copied in from assets\ at build time.
+build/
+
+# Packaged installers. These belong on a Releases page, not in the history -
+# a 2 MB binary per version bloats every future clone.
+dist/
+
+# Local editor and OS noise
+.vs/
+.idea/
+*.user
+*.suo
+Thumbs.db
+desktop.ini
