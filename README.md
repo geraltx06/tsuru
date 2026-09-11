@@ -9,13 +9,13 @@ Works system-wide — Explorer, browsers, editors, Office, anything that takes a
 normal wheel event.
 
 ```
-dist\Tsuru-1.0.0-setup.exe    installer, ~2 MB
-build\Tsuru.exe               the app itself, ~65 KB, no runtime to download
+dist\Tsuru-1.1.0-setup.exe    installer, ~4.6 MB
+build\Tsuru.exe               the app itself, ~113 KB, no runtime to download
 ```
 
 ## Installing
 
-Run `dist\Tsuru-1.0.0-setup.exe`. It installs **per user** into
+Run `dist\Tsuru-1.1.0-setup.exe`. It installs **per user** into
 `%LOCALAPPDATA%\Programs\Tsuru`, so there is no administrator prompt — which
 suits a tray utility whose settings and startup entry are per-user anyway, and
 avoids stacking a UAC prompt on top of the SmartScreen warning that any
@@ -93,6 +93,62 @@ else's machine, so `FontLoader` resolves it in order: a `.ttf`/`.otf` in a
 Segoe UI Light. Drop the font file into `build\fonts\` to ship it — subject to
 its redistribution licence.
 
+The screen answers the pointer in two places. The dot grid parts around the
+cursor and tints towards the wordmark's violet, springing shut behind it; and
+hovering any cut-out in the collage raises it slightly. Both run on one timer
+that stops the moment everything has settled — including while the pointer is
+still inside, once the dots have taken their shape around it — so an open
+welcome screen costs no CPU when nothing is moving.
+
+Hit testing on the collage reads the artwork's alpha, so the gaps between
+cut-outs stay inert, and it always tests against a piece's resting position:
+testing the raised position instead would let a piece that lifts out from under
+the pointer immediately drop again, and flutter.
+
+#### Welcome screen artwork
+
+Two parts of the welcome screen are photographic or hand-layered artwork rather
+than anything the app can draw, so they load from an `assets\` folder beside the
+executable. Both are optional — a missing file just means that element is not
+painted, and everything else still lays out correctly.
+
+| File | What it is | If absent |
+| --- | --- | --- |
+| `assets\title.png` | The layered *Tsuru* wordmark | Redrawn as text, white over an offset violet copy |
+| `assets\collage\*.png` | The cut-outs along the bottom edge | Bottom of the screen is left empty |
+
+In the repo these live in `assets\assets\`, which `build.ps1` copies into
+`build\assets\` and the installer ships alongside the exe. **Only what the app
+actually loads belongs there** — every file in that folder lands in the
+installer, so a stray export costs every future download.
+
+The collage ships as its **separate cut-outs, not as one flat image**, because
+each one has to answer the pointer on its own. Where they sit is not discoverable
+at runtime, so `Collage.cs` carries a table of positions in the coordinates of
+the 4200x2181 collage export, ordered back to front.
+
+Full-resolution artwork lives in `design\`, which is never copied into the build
+and — being ~18 MB that would sit in every future clone — **is not in the
+repository**. Figma is the source of truth for it; what ships is tracked.
+
+```
+design\collage-source.png   4200x2181 flat export, the reference composite
+design\cutouts\             the cut-outs at full resolution
+```
+
+So `make-assets.ps1` will not run on a fresh clone until that folder is
+recreated by re-exporting from the design file. It regenerates
+`assets\assets\collage\` by scaling the cut-outs to 0.4, which leaves them at 3x
+the 560px welcome screen — pixel-exact up to 300% display scaling, and a fifth
+of the bytes of the originals. Nothing else needs it: a clone builds and runs
+from the tracked assets alone.
+
+When re-exporting from Figma, export each cut-out as **PNG with a transparent
+background**, all at the same scale as the flat collage export, and do not
+include the dark backdrop — it would paint over the dot grid as a black band.
+If a piece moves in the design, its row in the `Collage.cs` table has to move
+with it; a piece whose file is missing is simply skipped.
+
 The icon shows a mouse; struck through in red when smoothing is paused. It
 redraws itself when you switch Windows between light and dark.
 
@@ -103,6 +159,26 @@ scroll something else to feel each change as you make it.
 
 Stored at `%APPDATA%\Tsuru\settings.ini` — plain `key=value`, safe to
 hand-edit while the app is closed.
+
+The window is drawn on the same dark design as the welcome screen rather than
+on system controls. Numeric settings use a **segmented bar** — mint up to the
+current value, grey beyond it — and everything on/off uses a **pill switch**.
+The segments are a readout only: dragging takes a value from the pointer
+position continuously and the bar quantises what it draws, because snapping the
+value itself to segments would put a floor of roughly a sixtieth of the range on
+every setting.
+
+Both respond to the keyboard once focused — arrows step a bar by one, PageUp
+and PageDown by a twentieth of its range, Home and End jump to the limits, and
+Space flips a switch. The wheel is deliberately inert over a bar: it scrolls the
+window instead, since a wheel that quietly edited whichever slider it passed
+over would be a poor joke in this app in particular.
+
+**Reset to default** returns every slider to its shipped value, leaving the
+master switch, the startup entry and the exclusion list alone — those are not
+what anyone is trying to undo. **Save settings** writes to disk and closes.
+Changes apply live regardless, and are saved when the window closes by any
+route, so nothing is lost by closing it with Escape or the ×.
 
 ### Master switch
 

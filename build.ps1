@@ -53,6 +53,10 @@ foreach ($folder in 'fonts', 'assets') {
     $from = Join-Path $root "assets\$folder"
     if (Test-Path $from) {
         $to = Join-Path $outDir $folder
+        # Emptied first, so an asset deleted from the repo also disappears from
+        # the build. Copying over the top would leave it behind, and the
+        # installer ships whatever it finds here.
+        if (Test-Path $to) { Remove-Item $to -Recurse -Force }
         New-Item -ItemType Directory -Force -Path $to | Out-Null
         Copy-Item "$from\*" $to -Recurse -Force
     }

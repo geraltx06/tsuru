@@ -160,6 +160,12 @@ namespace Tsuru
         {
             base.OnMouseMove(e);
 
+            // Fed before the early-out below: the dots and the collage follow
+            // the pointer continuously, not only when a button state flips.
+            Field().SetCursor(e.Location, true);
+            if (Art() != null) Art().SetCursor(e.Location, true);
+            Animate();
+
             bool overStart = StartFace.Contains(e.Location);
             bool overClose = CloseBox.Contains(e.Location);
             if (overStart == _hoverStart && overClose == _hoverClose) return;
@@ -206,6 +212,11 @@ namespace Tsuru
         {
             base.OnMouseLeave(e);
             _hoverStart = _hoverClose = _pressStart = false;
+
+            Field().SetCursor(PointF.Empty, false);
+            if (Art() != null) Art().SetCursor(PointF.Empty, false);
+            Animate();
+
             Invalidate();
         }
 
@@ -260,9 +271,6 @@ namespace Tsuru
         private const float DotSpacing = 0.0253f;
         private const float DotDiameter = 0.0040f;
 
-        /// <summary>Collage strip along the bottom edge, when the artwork is present.</summary>
-        private const float CollageTop = 0.7775f;
-
         private static int R(float fraction, int extent)
         {
             return (int)Math.Round(fraction * extent);
@@ -281,9 +289,24 @@ namespace Tsuru
 
         private Image _titleArt;
         private bool _titleArtChecked;
-        private Image _collage;
-        private bool _collageChecked;
-        private Bitmap _dotTile;
+
+        private DotField _dots;
+        private Collage _collage;
+        private Timer _anim;
+
+        /// <summary>
+        /// Wordmark, sparkles and subtitle, rendered once. They never change,
+        /// and re-running the type fitting and DrawString for each of them on
+        /// every animation frame would dominate the frame time.
+        /// </summary>
+        private Bitmap _foreground;
+
+        /// <summary>
+        /// Fixed rather than measured. A spring integrated with the real
+        /// interval would change character whenever a frame ran late; at this
+        /// step size the motion is identical on every machine.
+        /// </summary>
+        private const float FrameSeconds = 1f / 60f;
 
         protected override void OnPaint(PaintEventArgs e)
         {
@@ -292,62 +315,106 @@ namespace Tsuru
             g.TextRenderingHint = TextRenderingHint.AntiAlias;
             g.InterpolationMode = InterpolationMode.HighQualityBicubic;
 
-            using (Brush back = new SolidBrush(Canvas))
-                g.FillRectangle(back, ClientRectangle);
+            // The dot field carries the canvas colour with it, so there is no
+            // separate background fill: its rest layer is the background.
+            g.DrawImageUnscaled(Field().RestLayer, 0, 0);
+            Field().DrawLive(g);
 
-            DrawDotGrid(g);
-            DrawCollage(g);
-            DrawTitle(g);
-            DrawSparkles(g);
-            DrawSubtitle(g);
+            if (Art() != null) Art().Draw(g);
+
+            g.DrawImageUnscaled(Foreground(), 0, 0);
             DrawStartButton(g);
             DrawClose(g);
         }
 
         /// <summary>
-        /// The regular dot field the design sits on. Cached to a tile and
-        /// repeated, rather than issuing an ellipse per dot on every repaint.
+        /// Everything above the dot field that never moves. Drawn on a
+        /// transparent layer so the live dots underneath still show through
+        /// around the lettering.
         /// </summary>
-        private void DrawDotGrid(Graphics g)
+        private Bitmap Foreground()
         {
-            float spacing = DotSpacing * CanvasWidth;
-            float diameter = Math.Max(1.4f, DotDiameter * CanvasWidth);
-            if (spacing < 2f) return;
+            if (_foreground != null) return _foreground;
 
-            if (_dotTile == null)
+            _foreground = new Bitmap(CanvasWidth, CanvasHeight, PixelFormat.Format32bppArgb);
+            using (Graphics g = Graphics.FromImage(_foreground))
             {
-                int tile = Math.Max(2, (int)Math.Round(spacing));
-                _dotTile = new Bitmap(tile, tile);
-                using (Graphics tg = Graphics.FromImage(_dotTile))
-                {
-                    tg.SmoothingMode = SmoothingMode.AntiAlias;
-                    tg.Clear(Color.Transparent);
-                    using (Brush dot = new SolidBrush(DotGrid))
-                        tg.FillEllipse(dot, (tile - diameter) / 2f, (tile - diameter) / 2f, diameter, diameter);
-                }
-            }
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                g.TextRenderingHint = TextRenderingHint.AntiAlias;
+                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                g.Clear(Color.Transparent);
 
-            using (TextureBrush brush = new TextureBrush(_dotTile, WrapMode.Tile))
-                g.FillRectangle(brush, ClientRectangle);
+                DrawTitle(g);
+                DrawSparkles(g);
+                DrawSubtitle(g);
+            }
+            return _foreground;
+        }
+
+        private DotField Field()
+        {
+            if (_dots == null)
+                _dots = new DotField(CanvasWidth, CanvasHeight,
+                                     DotSpacing * CanvasWidth,
+                                     Math.Max(1.4f, DotDiameter * CanvasWidth),
+                                     Canvas, DotGrid, TitleShadow);
+            return _dots;
+        }
+
+        private Collage Art()
+        {
+            if (_collage == null)
+            {
+                _collage = new Collage(CanvasWidth, CanvasHeight);
+                if (_collage.IsEmpty)
+                    Log.Write("No collage cut-outs found; the bottom of the welcome screen will be bare.");
+            }
+            return _collage.IsEmpty ? null : _collage;
         }
 
         /// <summary>
-        /// Optional collage strip across the bottom. It is photographic
-        /// cut-out artwork rather than anything drawable, so it is only shown
-        /// when the exported asset has been placed beside the executable.
+        /// Runs only while something is actually in motion. With the pointer
+        /// away - or resting still, once the dots have taken their shape around
+        /// it - the timer stops and the screen costs nothing.
         /// </summary>
-        private void DrawCollage(Graphics g)
+        private void Animate()
         {
-            Image art = Asset("collage.png", ref _collage, ref _collageChecked);
-            if (art == null) return;
+            if (_anim == null)
+            {
+                _anim = new Timer();
+                _anim.Interval = 16;
+                _anim.Tick += OnFrame;
+            }
+            if (!_anim.Enabled) _anim.Start();
+        }
 
-            float top = CollageTop * CanvasHeight;
-            float height = CanvasHeight - top;
-            // Anchored to the bottom edge, cropped rather than squashed if the
-            // export's aspect does not match the strip.
-            float scale = Math.Max((float)CanvasWidth / art.Width, height / art.Height);
-            float w = art.Width * scale, h = art.Height * scale;
-            g.DrawImage(art, (CanvasWidth - w) / 2f, CanvasHeight - h, w, h);
+        private void OnFrame(object sender, EventArgs e)
+        {
+            Rectangle before = Merge(Field().LiveBounds,
+                                     Art() == null ? Rectangle.Empty : Art().LiveBounds);
+
+            bool dotsMoving = Field().Step(FrameSeconds);
+            bool artMoving = Art() != null && Art().Step(FrameSeconds);
+
+            Rectangle after = Merge(Field().LiveBounds,
+                                    Art() == null ? Rectangle.Empty : Art().LiveBounds);
+
+            Rectangle dirty = Merge(before, after);
+            if (!dirty.IsEmpty)
+            {
+                dirty.Inflate(2, 2);
+                Invalidate(dirty);
+            }
+
+            if (!dotsMoving && !artMoving) _anim.Stop();
+        }
+
+        /// <summary>Union that treats an empty rectangle as nothing, rather than as the origin.</summary>
+        private static Rectangle Merge(Rectangle a, Rectangle b)
+        {
+            if (a.IsEmpty) return b;
+            if (b.IsEmpty) return a;
+            return Rectangle.Union(a, b);
         }
 
         private void DrawTitle(Graphics g)
@@ -760,8 +827,10 @@ namespace Tsuru
                 if (_subtitleFont != null) _subtitleFont.Dispose();
                 if (_buttonFont != null) _buttonFont.Dispose();
                 if (_titleArt != null) _titleArt.Dispose();
+                if (_anim != null) _anim.Dispose();
+                if (_dots != null) _dots.Dispose();
                 if (_collage != null) _collage.Dispose();
-                if (_dotTile != null) _dotTile.Dispose();
+                if (_foreground != null) _foreground.Dispose();
                 if (Icon != null) Icon.Dispose();
             }
             base.Dispose(disposing);

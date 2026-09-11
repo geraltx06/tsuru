@@ -8,7 +8,7 @@
 ; Build with:  powershell -File make-installer.ps1
 
 #define AppName        "Tsuru"
-#define AppVersion     "1.0.0"
+#define AppVersion     "1.1.0"
 #define AppPublisher   "Mayank Singh"
 #define AppExe         "Tsuru.exe"
 #define AppMutexName   "Tsuru.SingleInstance.9F2A1C"

@@ -6,6 +6,12 @@ build/
 # a 2 MB binary per version bloats every future clone.
 dist/
 
+# Full-resolution Figma exports, ~18 MB. Kept out for the same reason: Figma is
+# the source of truth for the artwork, and what the app actually ships - the
+# downscaled cut-outs in assets\assets\ - is tracked. Re-export from the design
+# file to recreate this folder before running make-assets.ps1.
+design/
+
 # Local editor and OS noise
 .vs/
 .idea/
