@@ -17,8 +17,7 @@ with no administrator prompt, and offers a desktop shortcut and *Start Tsuru
 when I sign in*.
 
 The build is **unsigned**, so SmartScreen will warn — *More info → Run anyway*.
-A code-signing certificate is what clears that, and is worth sorting before the
-link goes anywhere public.
+A code-signing certificate is what clears that, and im too broke for that shit
 
 Uninstall from Add/Remove Programs. It removes the program, both shortcuts and
 the startup entry, and offers to delete your settings.
