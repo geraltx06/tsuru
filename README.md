@@ -5,19 +5,22 @@ wheel notch and replays it as a stream of small steps along an easing curve, so
 scrolling glides instead of jumping line by line. Works anywhere that takes a
 normal wheel event.
 
-```
-dist\Tsuru-1.1.0-setup.exe    installer, ~4.6 MB
-build\Tsuru.exe               the app itself, ~113 KB, no runtime to download
-```
+## Download
 
-## Install
+### **[Download Tsuru for Windows](https://github.com/geraltx06/tsuru/releases/latest)**
 
-Run the installer. It installs **per user** into `%LOCALAPPDATA%\Programs\Tsuru`
-with no administrator prompt, and offers a desktop shortcut and *Start Tsuru
-when I sign in*.
+That page has one file — `Tsuru-1.1.0-setup.exe`, about 4.6 MB. Download it,
+double-click it, done. There is nothing to unzip and nothing else to install: no
+runtime, no SDK. (Ignore the green *Code → Download ZIP* button at the top of
+this page — that gives you the source code, not the app.)
 
-The build is **unsigned**, so SmartScreen will warn — *More info → Run anyway*.
-A code-signing certificate is what clears that, and im too broke for that shit
+Windows will show a blue **"Windows protected your PC"** box, because the app is
+unsigned. Click **More info**, then **Run anyway**. A code-signing certificate is
+what clears that, and im too broke for that shit
+
+It installs **per user** into `%LOCALAPPDATA%\Programs\Tsuru` with no
+administrator prompt, and offers a desktop shortcut and *Start Tsuru when I sign
+in*.
 
 Uninstall from Add/Remove Programs. It removes the program, both shortcuts and
 the startup entry, and offers to delete your settings.
